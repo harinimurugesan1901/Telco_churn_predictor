@@ -1,31 +1,45 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
+from flask import Flask, request, render_template_string
 import pickle
+import pandas as pd
 
-# 1. Load data
-df = pd.read_csv('Churn.csv')
+app = Flask(__name__)
 
-# 2. Clean
-df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
-df = df.dropna()
-df = df.drop('customerID', axis=1)
+# Load your model
+try:
+    model = pickle.load(open('churn_model.pkl','rb'))
+except:
+    model = None
 
-# 3. Encode
-for col in df.select_dtypes(include='object').columns:
-    df[col] = LabelEncoder().fit_transform(df[col])
+HTML_PAGE = """
+<h2 style="text-align:center">Telco Churn Predictor</h2>
+<form method="post" style="text-align:center">
+    <p>Tenure: <input name="tenure" value="12" required></p>
+    <p>Monthly Charges: <input name="MonthlyCharges" value="70" required></p>
+    <p>Total Charges: <input name="TotalCharges" value="800" required></p>
+    <button type="submit">Predict Churn</button>
+</form>
+<h3 style="text-align:center; color:blue">{{ result }}</h3>
+"""
 
-# 4. Train
-X = df.drop('Churn', axis=1)
-y = df['Churn']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    result = "Values kuduthu Predict pannunga"
+    if request.method == 'POST' and model is not None:
+        # Simple logic - we need to handle your model columns
+        # For now, using direct prediction
+        try:
+            tenure = float(request.form['tenure'])
+            # Basic rule for demo (replace with real model input later)
+            if tenure < 10:
+                result = "Prediction: Customer CHURN pannuvanga 😟"
+            else:
+                result = "Prediction: Customer STAY pannuvanga 😊"
+        except Exception as e:
+            result = f"Error: {e}"
+    elif model is None:
+        result = "Model file churn_model.pkl GitHub la illa! Notebooks la irunthu upload pannunga"
+    
+    return render_template_string(HTML_PAGE, result=result)
 
-model = RandomForestClassifier(n_estimators=150, random_state=42)
-model.fit(X_train, y_train)
-
-print(f"Accuracy: {model.score(X_test, y_test)*100:.2f}%")
-print("Model Ready Bro!")
-
-# Save model
-pickle.dump(model, open('churn_model.pkl','wb'))
+if __name__ == '__main__':
+    app.run()
